@@ -10,6 +10,7 @@ Resumable: run the same command again and it continues where it stopped.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -424,7 +425,12 @@ def prepare(video, source, work, args):
     ass = work / "src" / f"{key}.ass"
     info_path = ass.with_suffix(".json")
     info = json.loads(info_path.read_text(encoding="utf-8")) if info_path.exists() else {}
-    if ass.exists() and ass.stat().st_size and same_request(info, args):
+    if (
+        ass.exists()
+        and ass.stat().st_size
+        and same_request(info, args)
+        and not sidecar_changed(video, info, ass)
+    ):
         return key, ass, ""
     ass.parent.mkdir(parents=True, exist_ok=True)
     tmp = ass.with_name(f"{key}.part.ass")
@@ -438,7 +444,12 @@ def prepare(video, source, work, args):
             info = {"track": track["index"], "language": track["language"]}
         else:
             convert_sidecar(sidecar, tmp)
-            info = {"track": None, "language": sidecar_lang, "sidecar": sidecar.name}
+            info = {
+                "track": None,
+                "language": sidecar_lang,
+                "sidecar": sidecar.name,
+                "sidecar_sha": file_sha(sidecar),
+            }
     except subprocess.CalledProcessError:
         tmp.unlink(missing_ok=True)
         return key, None, "ffmpeg could not read the subtitle track"
@@ -452,6 +463,22 @@ def prepare(video, source, work, args):
 
 def glob_escape(text):
     return re.sub(r"([\[\]*?])", r"[\1]", text)
+
+
+def file_sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def sidecar_changed(video, info, ass):
+    """Was the sidecar this source was made from replaced or edited since?"""
+    if not info.get("sidecar"):  # an embedded track
+        return False
+    sidecar = video.parent / info["sidecar"]
+    if not sidecar.exists():
+        return True
+    if info.get("sidecar_sha"):
+        return file_sha(sidecar) != info["sidecar_sha"]
+    return sidecar.stat().st_mtime > ass.stat().st_mtime  # a record from before the hash
 
 
 def same_request(info, args):
@@ -627,7 +654,7 @@ def translate(translator, jobs, tr_dir, work, args):
         elapsed = max(time.time() - start, 0.001)
         eta = elapsed / max(count, 1) * (total - count) / 3600
         print(
-            f"{v.name}: {len(events)} lines, {len(failed)} untranslated | {count}/{total} | "
+            f"FINISHED {v.name}: {len(events)} lines, {len(failed)} untranslated | {count}/{total} | "
             f"{translator.tokens / elapsed:.0f} tok/s | {count / elapsed * 60:.0f} lines/min | "
             f"ETA {eta:.1f} h",
             flush=True,

@@ -1,6 +1,6 @@
 ---
 name: library-move
-description: Move a prepared show folder (the Shows/ and Movies/ layout jellyfin-rename produces) from this computer into the media library of the home server - copy with rsync over SSH, verify every file on the server, and only then send the local copies to the trash. Dry run first; never overwrites a file already in the library and never deletes anything. Use when Diego asks to "move the episodes to the server", "send this show to the server / the NAS / Jellyfin", "put it in the library", "manda pro servidor", or after jellyfin-rename and subtitle-translate when the show is ready to watch.
+description: Move a prepared show folder (the Shows/ and Movies/ layout jellyfin-organizer produces) from this computer into the media library of the home server - copy with rsync over SSH, verify every file on the server, and only then send the local copies to the trash. Dry run first; never overwrites a file already in the library and never deletes anything. Use when Diego asks to "move the episodes to the server", "send this show to the server / the NAS / Jellyfin", "put it in the library", "manda pro servidor", or after jellyfin-organizer and subtitle-translate when the show is ready to watch.
 ---
 
 # library-move — prepared folder → the server's media library
@@ -25,6 +25,8 @@ into its movies folder, subtitles and other sidecar files included.
 | `--verify checksum\|size` | how the copy is checked (default `checksum`: every file is read on both sides; `size` is fast and only compares sizes) |
 | `--as show\|movie` | `<folder>` itself is one series or one movie folder, not a folder with `Shows/` and `Movies/` |
 | `--config FILE` | another config (`$LIBRARY_MOVE_CONFIG`; default `library-move/config.json`) |
+
+**Progress:** the script prints `FINISHED <episode file name>` as soon as each episode is done; relay those names to Diego as they appear in the log, in the final report too.
 
 ## Config
 

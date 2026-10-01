@@ -1,6 +1,7 @@
 """subtitle-translate against a fake Ollama: what lands where, resuming, retries."""
 
 import json
+import os
 import shutil
 import subprocess
 
@@ -279,3 +280,36 @@ def test_extracts_the_embedded_track_of_a_real_video(tmp_path, monkeypatch, olla
     assert "00:00:00,100 --> 00:00:00,900" in out
     assert "EN Bonjour <i>toi</i>" in out
     assert "French subtitles" in ollama.requests[0]["body"]["messages"][0]["content"]
+
+
+def test_a_replaced_sidecar_is_translated_again_not_served_from_the_old_translation(
+    library, ollama
+):
+    run(library, "--to", "en", "--limit", "1")
+    season = library / "Season 01"
+    (season / "Some Show - S01E01.en.srt").unlink()
+    (season / "Some Show - S01E01.fr.ass").write_text(
+        make_ass(["Nouvelle ligne", "Autre ligne"]), encoding="utf-8"
+    )
+    ollama.requests.clear()
+    assert run(library, "--to", "en", "--limit", "1") == 0
+    srt = (season / "Some Show - S01E01.en.srt").read_text()
+    assert "EN Nouvelle ligne" in srt and "EN Bonjour" not in srt
+    assert srt.count("-->") == 2
+
+
+def test_a_sidecar_newer_than_an_old_record_without_hash_is_translated_again(library, ollama):
+    run(library, "--to", "en", "--limit", "1")
+    work = next(library.parent.parent.glob("downloads/Some Show subtitles/src"))
+    record = work / "Season 01__Some Show - S01E01.json"
+    info = json.loads(record.read_text())
+    del info["sidecar_sha"]  # how records looked before the hash was stored
+    record.write_text(json.dumps(info))
+    season = library / "Season 01"
+    (season / "Some Show - S01E01.en.srt").unlink()
+    sidecar = season / "Some Show - S01E01.fr.ass"
+    sidecar.write_text(make_ass(["Nouvelle ligne", "Autre ligne"]), encoding="utf-8")
+    later = (work / "Season 01__Some Show - S01E01.ass").stat().st_mtime + 10
+    os.utime(sidecar, (later, later))
+    assert run(library, "--to", "en", "--limit", "1") == 0
+    assert "EN Nouvelle ligne" in (season / "Some Show - S01E01.en.srt").read_text()

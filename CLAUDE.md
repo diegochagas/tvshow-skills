@@ -6,9 +6,10 @@ a symlink, as `AGENTS.md` (Codex). The README's table lists every skill and
 its scripts; read a skill's `SKILL.md` before running any of its scripts.
 
 Skills: `subtitle-translate` (existing subtitle track → another language as
-`.srt`, through a local Ollama model), `jellyfin-rename` (release names →
+`.srt`, through a local Ollama model), `jellyfin-organizer` (release names →
 Jellyfin layout, dry run + undo log), `subtitle-generator` (no subtitles at
-all → Whisper `.srt` from the audio), `library-move` (prepared folder → the
+all → Whisper `.srt` from the audio), `subtitle-sync` (subtitles out of sync with the audio → timing fixed, original
+backed up), `library-move` (prepared folder → the
 server's media library: rsync, verify, then trash the local copy).
 `.claude/skills/` and `.agents/skills/` contain symlinks to those folders.
 
@@ -16,8 +17,8 @@ server's media library: rsync, verify, then trash the local copy).
 
 - Root `setup.sh` creates `venv/` (faster-whisper for `subtitle-generator`,
   pytest + ruff for the gate) and enables the pre-push hook.
-  `subtitle-translate`, `jellyfin-rename` and `library-move` are standard
-  library only and run with the system `python3`.
+  `subtitle-translate`, `jellyfin-organizer` and `library-move` are standard
+  library only (`subtitle-sync` needs numpy, from the venv) and run with the system `python3`.
 - `library-move/config.json` (gitignored, required) holds the real server
   address and library paths; `config.example.json` only has placeholders.
 - `tests/` covers all skills; `tests/conftest.py` puts every
@@ -30,9 +31,11 @@ server's media library: rsync, verify, then trash the local copy).
   files, plans, logs) goes to `~/Downloads/<source name> ...`
   (`SHOW_OUTPUT_DIR` replaces the root), never into the repo.
 - Videos and existing subtitle files are never modified. An existing target
-  `.srt` is skipped unless `--force`.
+  `.srt` is skipped unless `--force`. The one exception is `subtitle-sync`
+  with `--apply`: it rewrites the cue times of a `.srt` after copying the
+  original to its work folder (`--undo` restores it).
 - Two skills move the user's files, both as a dry run first, then
-  `--apply` once Diego has seen it: `jellyfin-rename` (inside the folder;
+  `--apply` once Diego has seen it: `jellyfin-organizer` (inside the folder;
   never deletes or overwrites, `rename-log.json` undoes it) and
   `library-move` (to the server; never overwrites a library file, and the
   local copy goes to the trash only after every file was verified there).
@@ -56,7 +59,7 @@ This repo follows the dev-playbook (`~/.claude/skills/dev-playbook/PLAYBOOK.md`)
 - Bugs: write a failing regression test first, then fix.
 - Never weaken, skip or delete a test to make it pass.
 - Risk class for this repo: data-deletion (the skills move and write files in a
-  media library someone else owns the content of). Changes to `jellyfin-rename`,
+  media library someone else owns the content of). Changes to `jellyfin-organizer`,
   `library-move` or to where `subtitle-translate` writes need scenario tests in temp folders
   (nothing lost, nothing overwritten, dry run changes nothing, undo restores)
   and keep the second safeguard: dry run by default plus the undo log.

@@ -6,9 +6,12 @@ description: Generate synchronized subtitles for a single video file (one episod
 # subtitle-generator — audio → .srt, one episode at a time
 
 Creates a synchronized `.srt` next to a single video using
-[faster-whisper](https://github.com/SYSTRAN/faster-whisper). It can translate
-any-language audio to English (Whisper's `translate` task) or transcribe in
-the original language. It is **resumable in chunks**: each run processes
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper). By default it
+transcribes the audio in its original language (`<video name>.<lang>.srt`,
+e.g. `.ja.srt`) and then runs **subtitle-translate** (local Ollama model) on
+that transcript to produce `<video name>.en.srt`, which reads better than
+Whisper's own translation. Ollama must be running; if it is not, the
+transcript is kept and the script exits with `TRANSLATION FAILED`. It is **resumable in chunks**: each run processes
 time-windows and saves progress, and re-running continues until the full
 `.srt` is written.
 
@@ -16,6 +19,8 @@ Scripts in `subtitle-generator/scripts/`, run with the repo venv
 (`<repo>/venv/bin/python`, created by `<repo>/setup.sh`, which installs
 faster-whisper). `<repo>` is the tvshow-skills checkout. Needs `ffmpeg` on PATH.
 The model (~480 MB for `small`) downloads on first use.
+
+**Progress:** the script prints `FINISHED <episode file name>` as soon as each episode is done; relay those names to Diego as they appear in the log, in the final report too.
 
 ## When to use
 
@@ -28,7 +33,7 @@ The model (~480 MB for `small`) downloads on first use.
 
 ```bash
 <repo>/venv/bin/python subtitle-generator/scripts/gen_subs.py "/path/to/Episode 01.mp4"
-# -> writes "/path/to/Episode 01.en.srt"
+# -> writes "/path/to/Episode 01.ja.srt" (transcript), then "Episode 01.en.srt" (translated)
 
 PATH="<repo>/venv/bin:$PATH" bash subtitle-generator/scripts/run_season.sh "/path/to/Season 01" [model]
 ```
@@ -43,7 +48,8 @@ the SAME command until it prints `DONE`:
 | Flag | Use |
 | --- | --- |
 | `--model` | `tiny\|base\|small\|medium\|large-v3` (default `small`). Bigger = better, much slower on CPU |
-| `--task` | `translate` (English output, default) or `transcribe` (keep the source language) |
+| `--task` | `transcribe` (default: source-language transcript, then translated with subtitle-translate) or `translate` (Whisper's own English output, no Ollama, lower quality) |
+| `--to LANG` | language the transcript is translated into (default `en`, e.g. `pt-BR`); `none` keeps only the transcript |
 | `--language` | source language code, e.g. `ja` (default: auto-detect) |
 | `--beam` | beam size (default 5; 1 is ~2x faster, slightly worse) |
 | `--chunk-sec` | window length for resumable processing (default 300) |
@@ -53,8 +59,9 @@ the SAME command until it prints `DONE`:
 
 ## Where results go
 
-Next to the video: `<video name>.en.srt` (`translate`) or
-`<video name>.<language>.srt` (`transcribe`), the names a player looks for.
+Next to the video: the transcript `<video name>.<language>.srt` and the
+translation `<video name>.<to>.srt` (`.en.srt` by default), the names a player
+looks for. `--task translate` writes only `<video name>.en.srt`.
 While a file is in progress a `<video name>.subprogress.json` sits beside
 it; it is deleted when the `.srt` is written. Nothing else is touched.
 
@@ -75,8 +82,14 @@ it; it is deleted when the `.srt` is written. Nothing else is touched.
   `--model medium` (or `large-v3`), or hand-edit the `.srt`.
 - CPU speed on dense dialogue is roughly 3–5x realtime with `small`/beam 5:
   a ~22-minute episode is ~5–7 minutes of compute.
-- Whisper only translates **to English**. For another language, generate
-  the English `.srt` and run `subtitle-translate` on it (`--to pt-BR`).
+- The translation step is `subtitle-translate`, so it needs Ollama and
+  inherits its limits. A video with no speech (a PV with music only) gets an
+  empty transcript and no translation.
+- A video that already has `<video name>.<to>.srt` is skipped.
+- An existing transcript (`<video name>.<lang>.srt`) is never overwritten or deleted: it is
+  translated as it is. If the translation fails, the transcript stays and the
+  next run goes straight to the translation. `run_season.sh` carries on with
+  the other episodes and exits with an error at the end.
 
 ## Report
 

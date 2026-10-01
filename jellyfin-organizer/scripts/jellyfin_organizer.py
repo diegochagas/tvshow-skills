@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Rename a downloaded show into the layout Jellyfin recognises, seasons and movies apart.
 
-  jellyfin_rename.py plan <folder> --series "Title" ...
-  jellyfin_rename.py apply <plan.json> [--apply]
-  jellyfin_rename.py undo <rename-log.json> [--apply]
+  jellyfin_organizer.py plan <folder> --series "Title" ...
+  jellyfin_organizer.py apply <plan.json> [--apply]
+  jellyfin_organizer.py undo <rename-log.json> [--apply]
 
 `plan` only writes a plan file. `apply` and `undo` are dry runs until `--apply` is given.
 Files are moved, never deleted or overwritten; every move is logged so it can be undone.
@@ -208,6 +208,8 @@ def run_moves(root, moves, do_it, log_path=None):
         dst.parent.mkdir(parents=True, exist_ok=True)
         (root / m["from"]).rename(dst)
         done.append({"from": m["to"], "to": m["from"], "kind": m.get("kind", "")})
+        if m.get("kind") in ("episode", "special", "movie"):
+            print(f"FINISHED {dst.name}", flush=True)
         if log_path:  # written after every move, so an interrupted run can still be undone
             log_path.write_text(
                 json.dumps({"root": str(root), "moves": done}, indent=1), encoding="utf-8"

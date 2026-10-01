@@ -10,7 +10,13 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
-for skill in ("subtitle-translate", "jellyfin-rename", "subtitle-generator", "library-move"):
+for skill in (
+    "subtitle-translate",
+    "jellyfin-organizer",
+    "subtitle-generator",
+    "library-move",
+    "subtitle-sync",
+):
     sys.path.insert(0, str(REPO / skill / "scripts"))
 
 ASS_HEADER = """[Script Info]

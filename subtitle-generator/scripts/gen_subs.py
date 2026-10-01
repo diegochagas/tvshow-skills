@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
 gen_subs.py - Generate synchronized subtitles for ONE video file using
-faster-whisper. Designed for Japanese (or any-language) audio -> English
-subtitles via Whisper's built-in translate task, but works for plain
-transcription too.
+faster-whisper. Designed for Japanese (or any-language) audio: Whisper
+transcribes it in the original language (`<video name>.<lang>.srt`), then the
+subtitle-translate skill (a local Ollama model) translates that transcript to
+English (`<video name>.en.srt`). `--task translate` uses Whisper's own, weaker,
+built-in translation instead; `--to none` keeps the transcript only.
 
 Key feature: RESUMABLE in chunks. A long episode is processed in fixed
 time windows so it can run inside environments that cap command runtime
@@ -18,9 +20,10 @@ python3 gen_subs.py "Power Stone - S01E01 ... .mp4"
 # One chunk per call (for capped sandboxes); call repeatedly until DONE:
 python3 gen_subs.py "episode.mp4" --max-chunks 1
 
-# Higher quality (slower), or keep original-language subtitles:
+# Higher quality (slower), another target language, or no translation:
 python3 gen_subs.py "episode.mp4" --model medium
-python3 gen_subs.py "episode.mp4" --task transcribe --language ja
+python3 gen_subs.py "episode.mp4" --language ja --to pt-BR
+python3 gen_subs.py "episode.mp4" --to none
 """
 
 import argparse
@@ -30,6 +33,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from pathlib import Path
 
 CHUNK_SEC_DEFAULT = 300  # 5 min windows: ~20s compute on small model, safe under a 45s cap
 
@@ -74,6 +78,22 @@ def write_srt(segments, path):
     return i - 1
 
 
+TRANSLATE_SCRIPT = (
+    Path(__file__).resolve().parents[2] / "subtitle-translate" / "scripts" / "translate_subs.py"
+)
+
+
+def translate_subtitles(video, to):
+    """Run the subtitle-translate skill on the transcript next to the video."""
+    result = subprocess.run([sys.executable, str(TRANSLATE_SCRIPT), video, "--to", to], check=False)
+    return result.returncode == 0
+
+
+def prog_done(path):
+    if os.path.exists(path):
+        os.remove(path)
+
+
 def main():
     ap = argparse.ArgumentParser(description="Generate subtitles for one video file.")
     ap.add_argument("video", help="Path to the video/audio file")
@@ -84,9 +104,16 @@ def main():
     )
     ap.add_argument(
         "--task",
-        default="translate",
-        choices=["translate", "transcribe"],
-        help="translate=output English; transcribe=keep source language (default: translate)",
+        default="transcribe",
+        choices=["transcribe", "translate"],
+        help="transcribe=keep the source language, then translate it with subtitle-translate "
+        "(default); translate=Whisper's own English translation (lower quality)",
+    )
+    ap.add_argument(
+        "--to",
+        default="en",
+        help="language subtitle-translate translates the transcript into (default: en; "
+        "'none' keeps only the transcript)",
     )
     ap.add_argument(
         "--language", default=None, help="Source language code (e.g. ja). Default: auto-detect"
@@ -114,12 +141,17 @@ def main():
         sys.exit(1)
 
     base = os.path.splitext(video)[0]
-    suffix = ".en.srt" if args.task == "translate" else f".{args.language or 'orig'}.srt"
-    out_srt = args.output or (base + suffix)
     prog_path = base + ".subprogress.json"
+    final_lang = "en" if args.task == "translate" else args.to
+    final_srt = args.output or (base + f".{final_lang}.srt")
 
-    if os.path.exists(out_srt) and os.path.getsize(out_srt) > 0 and not os.path.exists(prog_path):
-        print(f"DONE: already exists -> {out_srt}")
+    if (
+        final_lang != "none"
+        and os.path.exists(final_srt)
+        and os.path.getsize(final_srt) > 0
+        and not os.path.exists(prog_path)
+    ):
+        print(f"DONE: already exists -> {final_srt}")
         return
 
     duration = probe_duration(video)
@@ -171,15 +203,17 @@ def main():
             stderr=subprocess.DEVNULL,
         )
         t0 = time.time()
-        segs, _ = model.transcribe(
+        segs, info = model.transcribe(
             wav,
             task=args.task,
-            language=args.language,
+            language=args.language or prog.get("language"),
             beam_size=args.beam,
             vad_filter=True,
             condition_on_previous_text=False,
             vad_parameters={"min_silence_duration_ms": 500},
         )
+        if not prog.get("language"):
+            prog["language"] = args.language or getattr(info, "language", None)
         n = 0
         for s in segs:
             txt = s.text.strip()
@@ -201,9 +235,30 @@ def main():
         )
 
     if prog["offset"] >= duration:
-        total = write_srt(prog["segments"], out_srt)
-        os.remove(prog_path)
-        print(f"DONE: wrote {total} subtitle lines -> {out_srt}")
+        lang = "en" if args.task == "translate" else (prog.get("language") or "und")
+        out_srt = args.output or (base + f".{lang}.srt")
+        speech = sum(1 for s in prog["segments"] if s["text"].strip())
+        if os.path.exists(out_srt) and os.path.getsize(out_srt) > 0:
+            # a transcript from an earlier run, or the user's own file: never overwritten
+            total = Path(out_srt).read_text(encoding="utf-8").count("-->")
+            print(f"DONE: {out_srt} already exists, kept as it is ({total} lines)")
+        elif not speech:
+            prog_done(prog_path)
+            print("DONE: no speech found, no subtitle written")
+            print(f"FINISHED {os.path.basename(video)}")
+            return
+        else:
+            total = write_srt(prog["segments"], out_srt)
+            print(f"DONE: wrote {total} subtitle lines -> {out_srt}")
+        if total and args.task == "transcribe" and args.to != "none" and lang != args.to:
+            if args.output:
+                print("Not translated: --output was given; run subtitle-translate on the video.")
+            elif not translate_subtitles(video, args.to):
+                # the progress file stays: a re-run goes straight to the translation
+                print(f"TRANSLATION FAILED: {out_srt} was kept; fix Ollama and run it again.")
+                sys.exit(1)
+        prog_done(prog_path)
+        print(f"FINISHED {os.path.basename(video)}")
     else:
         pct = 100.0 * prog["offset"] / duration
         print(f"PARTIAL: {pct:.0f}% done. Re-run the same command to continue.")

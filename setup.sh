@@ -13,7 +13,7 @@ if [ ! -d venv ]; then
     python3 -m venv venv
     venv/bin/pip install --quiet --upgrade pip
 fi
-venv/bin/pip install --quiet -r requirements-dev.txt faster-whisper
+venv/bin/pip install --quiet -r requirements-dev.txt faster-whisper "av<17"  # av 17+ dropped an argument faster-whisper 1.2 passes
 echo "venv ready: $(venv/bin/python -c 'import faster_whisper; print("faster-whisper", faster_whisper.__version__)')"
 
 for tool in ffmpeg ffprobe; do

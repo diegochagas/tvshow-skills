@@ -16,6 +16,8 @@ python3 <repo>/subtitle-translate/scripts/translate_subs.py "<video or folder>" 
     --show "a boxing anime" --glossary <file>
 ```
 
+**Progress:** the script prints `FINISHED <episode file name>` as soon as each episode is done; relay those names to Diego as they appear in the log, in the final report too.
+
 ## Arguments
 
 `/subtitle-translate <video or folder> [language]`

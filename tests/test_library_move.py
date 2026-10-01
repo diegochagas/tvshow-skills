@@ -71,7 +71,9 @@ def test_apply_copies_verifies_then_trashes(setup, capsys):
     }
     assert [p.name for p in trashed] == ["My Show", "My Movie (2003)"]
     assert not (prepared / "Shows").exists() and not (prepared / "Movies").exists()
-    assert "verified (checksum): My Show" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "verified (checksum): My Show" in out
+    assert "FINISHED " in out and ".mkv" in out
 
 
 def test_keep_local(setup):

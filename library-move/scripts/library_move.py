@@ -24,6 +24,9 @@ SKILL = Path(__file__).resolve().parent.parent
 KINDS = {"Shows": "shows_dir", "Movies": "movies_dir"}
 
 
+VIDEO_EXT = {".mkv", ".mp4", ".m4v", ".avi", ".webm", ".mov", ".ts"}
+
+
 def load_config(path):
     if not path.exists():
         raise SystemExit(
@@ -49,7 +52,7 @@ def find_items(folder, cfg, kind):
     if not items:
         raise SystemExit(
             f"{folder} has no Shows/ or Movies/ folder with something in it. "
-            "Run jellyfin-rename first, or pass --as show / --as movie for a single folder."
+            "Run jellyfin-organizer first, or pass --as show / --as movie for a single folder."
         )
     return items
 
@@ -189,6 +192,8 @@ def move(items, folder, cfg, args):
                 print(f"  {name}")
         else:
             print(f"verified ({args.verify}): {item.name}")
+            for video in sorted(p for p in item.rglob("*") if p.suffix.lower() in VIDEO_EXT):
+                print(f"FINISHED {video.name}")
     if failed:
         print("\nThe local copies were left where they are.")
         return 1
