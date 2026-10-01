@@ -1,0 +1,10 @@
+{
+  "host": "<user@server, or empty when the library is a local or mounted folder>",
+  "shows_dir": "</path/to/the/TV shows/library>",
+  "movies_dir": "</path/to/the/movies/library>",
+  "remote_rsync": "",
+  "chown": "",
+  "chmod": "",
+  "jellyfin_url": "",
+  "jellyfin_api_key": ""
+}

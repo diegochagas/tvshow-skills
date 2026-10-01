@@ -1,6 +1,9 @@
 # setup.sh output (not committed)
 venv/
 
+# real server address and paths (see library-move/config.example.json)
+library-move/config.json
+
 # Python
 __pycache__/
 *.pyc

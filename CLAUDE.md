@@ -8,15 +8,18 @@ its scripts; read a skill's `SKILL.md` before running any of its scripts.
 Skills: `subtitle-translate` (existing subtitle track → another language as
 `.srt`, through a local Ollama model), `jellyfin-rename` (release names →
 Jellyfin layout, dry run + undo log), `subtitle-generator` (no subtitles at
-all → Whisper `.srt` from the audio). `.claude/skills/` and `.agents/skills/`
-contain symlinks to those folders.
+all → Whisper `.srt` from the audio), `library-move` (prepared folder → the
+server's media library: rsync, verify, then trash the local copy).
+`.claude/skills/` and `.agents/skills/` contain symlinks to those folders.
 
 ## Shared pieces at the repo root
 
 - Root `setup.sh` creates `venv/` (faster-whisper for `subtitle-generator`,
   pytest + ruff for the gate) and enables the pre-push hook.
-  `subtitle-translate` and `jellyfin-rename` are standard library only and
-  run with the system `python3`.
+  `subtitle-translate`, `jellyfin-rename` and `library-move` are standard
+  library only and run with the system `python3`.
+- `library-move/config.json` (gitignored, required) holds the real server
+  address and library paths; `config.example.json` only has placeholders.
 - `tests/` covers all skills; `tests/conftest.py` puts every
   `<skill>/scripts/` on the import path and provides the fake Ollama server.
 
@@ -28,9 +31,11 @@ contain symlinks to those folders.
   (`SHOW_OUTPUT_DIR` replaces the root), never into the repo.
 - Videos and existing subtitle files are never modified. An existing target
   `.srt` is skipped unless `--force`.
-- `jellyfin-rename` is the only thing that moves the user's files: always
-  `plan` → dry run → Diego sees it → `--apply`. It never deletes or
-  overwrites, and `rename-log.json` undoes it.
+- Two skills move the user's files, both as a dry run first, then
+  `--apply` once Diego has seen it: `jellyfin-rename` (inside the folder;
+  never deletes or overwrites, `rename-log.json` undoes it) and
+  `library-move` (to the server; never overwrites a library file, and the
+  local copy goes to the trash only after every file was verified there).
 - Jellyfin naming: `Shows/` and `Movies/` apart, TMDB numbering, the year
   only on movies, no `[tmdbid-N]` tags on folders or files.
 - The translation is done by the local model, not by the agent: there is NO
@@ -51,8 +56,8 @@ This repo follows the dev-playbook (`~/.claude/skills/dev-playbook/PLAYBOOK.md`)
 - Bugs: write a failing regression test first, then fix.
 - Never weaken, skip or delete a test to make it pass.
 - Risk class for this repo: data-deletion (the skills move and write files in a
-  media library someone else owns the content of). Changes to `jellyfin-rename`
-  or to where `subtitle-translate` writes need scenario tests in temp folders
+  media library someone else owns the content of). Changes to `jellyfin-rename`,
+  `library-move` or to where `subtitle-translate` writes need scenario tests in temp folders
   (nothing lost, nothing overwritten, dry run changes nothing, undo restores)
   and keep the second safeguard: dry run by default plus the undo log.
 - External services: Ollama is always the fake server in tests; real-model runs
