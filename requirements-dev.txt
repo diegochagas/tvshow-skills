@@ -1,2 +1,3 @@
 pytest
 ruff
+numpy  # subtitle-sync and its tests
