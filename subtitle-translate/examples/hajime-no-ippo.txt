@@ -1,0 +1,13 @@
+Boxing vocabulary (French -> English):
+direct du gauche/droit = left/right straight; crochet = hook; contre = counter;
+garde = guard; pesée = weigh-in; arbitre = referee; gong = bell; compte = count;
+au tapis / à terre = down; salle / club = gym; le coach = Coach;
+tournoi des jeunes espoirs = Rookie King tournament;
+poids mouche = flyweight; poids coq = bantamweight; poids plume = featherweight;
+poids super-plume = junior lightweight; poids léger = lightweight;
+poids moyen = middleweight; poids lourd = heavyweight; coup au foie = liver blow.
+
+Technique names stay as they are: Dempsey Roll, Gazelle Punch, Smash, Flicker,
+Shotgun, Hien.
+
+Names: drop French circumflexes on Japanese names (Sendô -> Sendo). No honorifics.

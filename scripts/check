@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# The one gate: lint + shell lint + tests. Run by the pre-push hook and by CI.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+[ -d venv/bin ] && PATH="$PWD/venv/bin:$PATH"
+ruff check .
+ruff format --check .
+shellcheck setup.sh scripts/check .githooks/pre-push ./*/scripts/*.sh
+pytest -q -m "not slow"

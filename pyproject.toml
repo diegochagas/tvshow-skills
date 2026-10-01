@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: needs a real model/service (Ollama, Whisper); run manually"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["venv"]
