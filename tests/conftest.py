@@ -16,6 +16,7 @@ for skill in (
     "subtitle-generator",
     "library-move",
     "subtitle-sync",
+    "transcribe-translate",
 ):
     sys.path.insert(0, str(REPO / skill / "scripts"))
 

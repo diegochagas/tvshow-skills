@@ -10,12 +10,15 @@ Skills: `subtitle-translate` (existing subtitle track → another language as
 Jellyfin layout, dry run + undo log), `subtitle-generator` (no subtitles at
 all → Whisper `.srt` from the audio), `subtitle-sync` (subtitles out of sync with the audio → timing fixed, original
 backed up), `library-move` (prepared folder → the
-server's media library: rsync, verify, then trash the local copy).
+server's media library: rsync, verify, then trash the local copy),
+`transcribe-translate` (audio/video → readable `.txt` transcript translated
+to pt-BR: Whisper + local Ollama, in `~/Downloads/<name> transcript/`).
 `.claude/skills/` and `.agents/skills/` contain symlinks to those folders.
 
 ## Shared pieces at the repo root
 
-- Root `setup.sh` creates `venv/` (faster-whisper for `subtitle-generator`,
+- Root `setup.sh` creates `venv/` (faster-whisper for `subtitle-generator`
+  and `transcribe-translate`,
   pytest + ruff for the gate) and enables the pre-push hook.
   `subtitle-translate`, `jellyfin-organizer` and `library-move` are standard
   library only (`subtitle-sync` needs numpy, from the venv) and run with the system `python3`.
