@@ -119,6 +119,11 @@ def main():
         "--language", default=None, help="Source language code (e.g. ja). Default: auto-detect"
     )
     ap.add_argument("--beam", type=int, default=5)
+    ap.add_argument(
+        "--no-vad",
+        action="store_true",
+        help="Turn off the voice-activity filter (for noisy audio it can drop real speech)",
+    )
     ap.add_argument("--threads", type=int, default=os.cpu_count() or 4)
     ap.add_argument(
         "--chunk-sec",
@@ -159,6 +164,14 @@ def main():
     if os.path.exists(prog_path):
         with open(prog_path) as f:
             prog = json.load(f)
+        # progress files from before --no-vad were all made with the filter on
+        if prog.get("vad", True) != (not args.no_vad):
+            print(
+                f"Progress file {prog_path} was made with vad={prog.get('vad', True)}, "
+                f"this run has vad={not args.no_vad}: delete the progress file to start "
+                "over, or drop/add --no-vad to continue."
+            )
+            sys.exit(1)
     else:
         prog = {
             "offset": 0.0,
@@ -166,6 +179,7 @@ def main():
             "segments": [],
             "model": args.model,
             "task": args.task,
+            "vad": not args.no_vad,
         }
 
     from faster_whisper import WhisperModel
@@ -208,7 +222,7 @@ def main():
             task=args.task,
             language=args.language or prog.get("language"),
             beam_size=args.beam,
-            vad_filter=True,
+            vad_filter=not args.no_vad,
             condition_on_previous_text=False,
             vad_parameters={"min_silence_duration_ms": 500},
         )

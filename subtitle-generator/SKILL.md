@@ -52,6 +52,7 @@ the SAME command until it prints `DONE`:
 | `--to LANG` | language the transcript is translated into (default `en`, e.g. `pt-BR`); `none` keeps only the transcript |
 | `--language` | source language code, e.g. `ja` (default: auto-detect) |
 | `--beam` | beam size (default 5; 1 is ~2x faster, slightly worse) |
+| `--no-vad` | turn off the voice-activity filter. For quiet or noisy audio (a camrip) the filter can discard real dialogue; without it Whisper may invent lines over silence, so spot-check. An existing `.srt` is skipped, so to redo a finished run give `--output` a new path. Resuming with the opposite setting stops with a message |
 | `--chunk-sec` | window length for resumable processing (default 300) |
 | `--max-chunks` | windows to process this run (0 = run to completion) |
 | `--threads` | CPU threads (default: all cores) |

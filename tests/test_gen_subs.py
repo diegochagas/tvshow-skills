@@ -88,6 +88,31 @@ def test_default_transcribes_then_translates_with_subtitle_translate(
 
 
 @needs_ffmpeg
+def test_voice_filter_is_on_by_default_and_no_vad_turns_it_off(fake_whisper, clip, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["gen_subs.py", str(clip), "--to", "none"])
+    gen_subs.main()
+    assert FakeWhisper.calls[0]["vad_filter"] is True
+    (clip.parent / "Show - S01E01.ja.srt").unlink()
+    monkeypatch.setattr(sys, "argv", ["gen_subs.py", str(clip), "--to", "none", "--no-vad"])
+    gen_subs.main()
+    assert FakeWhisper.calls[-1]["vad_filter"] is False
+
+
+@needs_ffmpeg
+def test_resuming_with_a_different_vad_setting_stops_instead_of_mixing_them(
+    fake_whisper, clip, monkeypatch, capsys
+):
+    base = ["gen_subs.py", str(clip), "--to", "none", "--chunk-sec", "1", "--max-chunks", "1"]
+    monkeypatch.setattr(sys, "argv", base)
+    gen_subs.main()
+    monkeypatch.setattr(sys, "argv", [*base, "--no-vad"])
+    with pytest.raises(SystemExit) as stop:
+        gen_subs.main()
+    assert stop.value.code == 1
+    assert "--no-vad" in capsys.readouterr().out
+
+
+@needs_ffmpeg
 def test_to_none_and_whisper_translate_do_not_call_the_translator(fake_whisper, clip, monkeypatch):
     asked = []
     monkeypatch.setattr(gen_subs, "translate_subtitles", lambda v, to: asked.append(to) or True)
